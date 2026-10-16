@@ -1,5 +1,5 @@
 import { useState, type JSX } from "react";
-import { Home, FileText, Folder, Trash2, Activity, Search, LogOut, UserRound, Camera, ArrowLeft } from "lucide-react";
+import { Home, FileText, Folder, Trash2, Activity, Search, LogOut, UserRound, Camera } from "lucide-react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import { getUser, clearUser } from "../lib/auth";
 import { request } from "../api";
@@ -83,19 +83,6 @@ export default function Navbar({
                 SafeVault
               </Link>
             </h1>
-
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              aria-label="Go back to the previous page"
-              title="Go back"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700
-                bg-gray-800 text-gray-200 text-sm font-medium hover:bg-gray-700
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-            >
-              <ArrowLeft size={14} aria-hidden="true" />
-              Back
-            </button>
           </div>
 
           <form onSubmit={handleSearch} className="mt-4 relative">
