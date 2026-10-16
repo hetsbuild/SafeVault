@@ -7,6 +7,11 @@ export interface Folder {
   parentId?: string | null;
   notes?: Note[];
   folders?: Folder[];
+  files_url: {
+    file_type: string;
+    url: string;
+    name?: string;
+  }[];
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;

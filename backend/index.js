@@ -33,6 +33,20 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
     console.error(err);
+
+    if (err.code === "UNSUPPORTED_FILE_TYPE") {
+        return res.status(400).json({ success: false, msg: err.message, message: err.message });
+    }
+
+    if (err.name === "MulterError") {
+        const msg = err.code === "LIMIT_FILE_SIZE"
+            ? "File is too large. Maximum size allowed is 25 MB."
+            : err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE"
+                ? "You can attach a maximum of 10 files at a time."
+                : "File upload failed: " + err.message;
+        return res.status(400).json({ success: false, msg, message: msg });
+    }
+
     res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error" });
 });
 

@@ -9,6 +9,14 @@ const folderSchema = mongoose.Schema({
     parentId:{type: Schema.Types.ObjectId ,ref:'folders',default:null },
     notes:[{ type: Schema.Types.ObjectId, ref: 'notes', default: [] }],
     folders:[{ type: Schema.Types.ObjectId, ref: 'folders', default: [] }],
+    files_url:{
+        type:[{
+            url:String,
+            file_type:String,
+            name:String,
+        }],
+        default:[]
+    },
     isDeleted:{type:Boolean,default:false},
     deletedAt:{type:Date,default:null}
 },{ timestamps: true })

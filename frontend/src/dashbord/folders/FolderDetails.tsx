@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Paperclip, Pencil, Trash2, Loader2 } from "lucide-react";
 import FolderForm from "./FolderForm";
 import Masonry from "react-masonry-css";
 import NoteCard from "../notes/Note";
 import FolderCard from "./FolderCard";
+import FileDisplay from "../../components/FileDisplay";
 import type { Folder, Note } from "../../types";
 import { request } from "../../api";
 
@@ -17,6 +18,7 @@ export default function FolderDetails() {
   const [folder, setFolder] = useState<Folder | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [removingFile, setRemovingFile] = useState<number | null>(null);
 
   const handleDelete = async () => {
     if (!id || deleting) return;
@@ -33,14 +35,37 @@ export default function FolderDetails() {
     navigate("/folders");
   };
 
-  useEffect(() => {
+  const loadFolder = useCallback(() => {
     if (!id) return;
     setLoading(true);
     request<Folder>(`/getfolders/single/${id}`).then(({ data }) => {
       setFolder(data);
       setLoading(false);
     });
-  }, [id, isOpen]);
+  }, [id]);
+
+  const handleDeleteFile = async (index: number) => {
+    if (!id || removingFile !== null) return;
+    if (!window.confirm("Remove this file from the folder?")) return;
+    setRemovingFile(index);
+    const { data, ok } = await request<{
+      success: boolean;
+      msg: string;
+      files_url: Folder["files_url"];
+    }>(`/deletefolderfile/${id}/${index}`, { method: "DELETE" });
+    setRemovingFile(null);
+
+    if (ok && data?.success) {
+      setFolder((prev) => (prev ? { ...prev, files_url: data.files_url } : prev));
+      toast.success("File removed");
+    } else {
+      toast.error(data?.msg || "Could not remove the file");
+    }
+  };
+
+  useEffect(() => {
+    loadFolder();
+  }, [loadFolder, isOpen]);
 
   if (loading) {
     return (
@@ -74,6 +99,28 @@ export default function FolderDetails() {
         <p className="text-gray-700 whitespace-pre-wrap mb-4">
           {folder.desc || "No description"}
         </p>
+
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Paperclip size={18} /> Attachments
+            </h2>
+            <button
+              onClick={() => setIsOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+            >
+              <Paperclip size={14} /> Choose Files
+            </button>
+          </div>
+          {folder.files_url && folder.files_url.length > 0 ? (
+            <FileDisplay
+              files={folder.files_url}
+              handleDeleteFile={handleDeleteFile}
+            />
+          ) : (
+            <p className="text-gray-400 text-sm">No files attached to this folder.</p>
+          )}
+        </div>
 
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-3">Notes</h2>
@@ -139,6 +186,7 @@ export default function FolderDetails() {
           isPrivate={folder.isPrivate}
           upDesc={folder.desc}
           upTitle={folder.title}
+          files_url={folder.files_url}
           onClose={() => setIsOpen(false)}
         />
       )}

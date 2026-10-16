@@ -23,6 +23,7 @@ const addFolder = require("./folders/AddFolder");
 const getFolders = require("./folders/GetFolders");
 const updateFolder = require("./folders/UpdateFolder");
 const deleteFolder = require("./folders/DeleteFolder");
+const deleteFolderFile = require("./folders/DeleteFolderFile");
 
 //home
 const getRecent = require("./home/GetRecent");
@@ -42,12 +43,26 @@ const deleteForever = require('./trash/DeleteForever');
 
 
 const verifyToken = require('../utils/VerifyToken');
+const { isAllowedFile, MAX_FILE_SIZE } = require('../utils/allowedFiles');
 const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const upload = multer({
   dest: UPLOADS_DIR,
   limits: { fileSize: 25 * 1024 * 1024 }
+});
+
+const folderUpload = multer({
+  dest: UPLOADS_DIR,
+  limits: { fileSize: MAX_FILE_SIZE, files: 10 },
+  fileFilter: (req, file, cb) => {
+    if (isAllowedFile(file)) {
+      return cb(null, true);
+    }
+    const err = new Error(`Unsupported file type: ${file.originalname}`);
+    err.code = "UNSUPPORTED_FILE_TYPE";
+    cb(err);
+  }
 });
 
 
@@ -72,10 +87,11 @@ routes.get("/getnotes/:type{/:id}", verifyToken, getNotes)
 routes.delete("/deletenote/:id", verifyToken, deleteNote);
 
 //folders
-routes.post("/addfolder", verifyToken, upload.none(), addFolder);
-routes.post("/updatefolder/:id", verifyToken, upload.none(), updateFolder);
+routes.post("/addfolder", verifyToken, folderUpload.array('files', 10), addFolder);
+routes.post("/updatefolder/:id", verifyToken, folderUpload.array('files', 10), updateFolder);
 routes.get("/getfolders/:type{/:id}", verifyToken, getFolders);
 routes.delete("/deletefolder/:id", verifyToken, deleteFolder);
+routes.delete("/deletefolderfile/:id/:index", verifyToken, deleteFolderFile);
 
 //trash
 routes.get("/trash", verifyToken, getTrash);
