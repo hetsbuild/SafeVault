@@ -1,9 +1,10 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import LandingPage from "./landingPage/LandingPage";
 import Login from "./auth/Login";
 import Signup from "./auth/Signup";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Layout from "./dashbord/Layout";
 import FaceRecognition from "./dashbord/notes/FaceRecognition";
 import NoteDetails from "./dashbord/notes/NoteDetails";
@@ -15,6 +16,7 @@ import ActivityPage from "./dashbord/activity log/Page";
 import TrashPage from "./dashbord/trash/Page";
 import SearchPage from "./dashbord/search/Page";
 import { getUser } from "./lib/auth";
+import { warmFaceModelsInBackground } from "./lib/faceModels";
 import type { ReactNode } from "react";
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -26,6 +28,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  // Warm the face-api.js weights while the user is idle so that opening a
+  // private item does not stall on a ~6.7 MB download.
+  useEffect(() => warmFaceModelsInBackground(), []);
+
   return (
     <>
       <Routes>
@@ -65,6 +71,14 @@ export default function App() {
           element={
             <RequireAuth>
               <FaceRecognition mode="verify" type="folders" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/faceverify/delete/:kind/:id"
+          element={
+            <RequireAuth>
+              <FaceRecognition mode="delete" />
             </RequireAuth>
           }
         />

@@ -24,6 +24,7 @@ const getFolders = require("./folders/GetFolders");
 const updateFolder = require("./folders/UpdateFolder");
 const deleteFolder = require("./folders/DeleteFolder");
 const deleteFolderFile = require("./folders/DeleteFolderFile");
+const getFolderPath = require("./folders/GetFolderPath");
 
 //home
 const getRecent = require("./home/GetRecent");
@@ -92,6 +93,7 @@ routes.post("/updatefolder/:id", verifyToken, folderUpload.array('files', 10), u
 routes.get("/getfolders/:type{/:id}", verifyToken, getFolders);
 routes.delete("/deletefolder/:id", verifyToken, deleteFolder);
 routes.delete("/deletefolderfile/:id/:index", verifyToken, deleteFolderFile);
+routes.get("/folderpath/:id", verifyToken, getFolderPath);
 
 //trash
 routes.get("/trash", verifyToken, getTrash);

@@ -38,7 +38,7 @@ export default function Note({
           >
             {isPrivate ? "🔒 Private" : "Public"}
           </span>
-          <DropDown type="note" _id={_id} />
+          <DropDown type="note" _id={_id} isPrivate={isPrivate} />
         </div>
 
         {hasMedia && files_url[0]?.url && (

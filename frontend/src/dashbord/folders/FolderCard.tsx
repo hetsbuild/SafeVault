@@ -11,7 +11,7 @@ export default function FolderCard({ _id, title, desc, isPrivate }: Folder) {
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20">
             {isPrivate ? "🔒 Private" : "Public"}
           </span>
-          <DropDown type="folder" _id={_id} />
+          <DropDown type="folder" _id={_id} isPrivate={isPrivate} />
         </div>
 
         <div className="mb-3 flex items-center gap-3">

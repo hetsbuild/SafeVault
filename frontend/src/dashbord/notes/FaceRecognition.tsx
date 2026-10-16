@@ -4,9 +4,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { request } from "../../api";
 import { updateUser } from "../../lib/auth";
+import { prefetchFaceModels } from "../../lib/faceModels";
 
 type FaceRecognitionProps = {
-  mode?: "save" | "verify";
+  mode?: "save" | "verify" | "delete";
   type?: string;
 };
 
@@ -19,8 +20,34 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
   const [hasFace, setHasFace] = useState<boolean | null>(null);
   const [noFaceRegistered, setNoFaceRegistered] = useState(false);
   const [done, setDone] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id, kind } = useParams();
+
+  // In delete mode the item kind comes from the route (/faceverify/delete/:kind/:id);
+  // in verify mode it comes from the "type" prop.
+  const plural = mode === "delete" ? kind : type;
+  const isFolder = plural === "folders";
+  const itemName = isFolder ? "folder" : "note";
+  const deletePath = isFolder ? `/deletefolder/${id}` : `/deletenote/${id}`;
+  const badKind = mode === "delete" && plural !== "notes" && plural !== "folders";
+
+  const deleteAfterVerify = async () => {
+    setStatus("✅ Face matched! Deleting...");
+    stopVideo();
+
+    const { data, ok } = await request<{ success: boolean; msg?: string }>(deletePath, {
+      method: "DELETE",
+    });
+
+    if (ok && data?.success) {
+      toast.success(data.msg || `Moved ${itemName} to trash`);
+      navigate(`/${plural}`);
+    } else {
+      setStatus("❌ " + (data?.msg || `Could not delete this ${itemName}`));
+      setSubmitting(false);
+    }
+  };
 
   const stopVideo = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -41,39 +68,65 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
         }
       }
     } catch {
-      setStatus("🚫 Unable to access webcam. Allow camera access and reload.");
+      setCameraError(true);
     }
   }, []);
 
   useEffect(() => {
+    if (badKind) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     const loadModels = async () => {
-      try {
-        setStatus("Loading models...");
-        await Promise.all([
-          faceapi.nets.faceRecognitionNet.loadFromUri("/models/face_recognition/"),
-          faceapi.nets.tinyFaceDetector.loadFromUri("/models/tiny_face_detector/"),
-          faceapi.nets.faceLandmark68Net.loadFromUri("/models/face_landmark_68/"),
-        ]);
-        if (cancelled) return;
-        setStatus("Models loaded. Starting webcam...");
-        setLoading(false);
-        await startVideo();
-      } catch {
-        if (cancelled) return;
-        setStatus("🚫 Error loading models");
-        setLoading(false);
-      }
+      // Makes sure the weights are in the HTTP cache before loadFromUri()
+      // asks for them, instead of discovering a cold download here.
+      await prefetchFaceModels();
+      if (cancelled) return;
+
+      setStatus("Loading recognition model...");
+      await faceapi.nets.faceRecognitionNet.loadFromUri("/models/face_recognition/");
+      if (cancelled) return;
+
+      setStatus("Loading face detector...");
+      await faceapi.nets.tinyFaceDetector.loadFromUri("/models/tiny_face_detector/");
+      if (cancelled) return;
+
+      setStatus("Loading landmark model...");
+      await faceapi.nets.faceLandmark68Net.loadFromUri("/models/face_landmark_68/");
     };
 
-    loadModels();
+    const run = async () => {
+      // Camera permission and the model download happen at the same time
+      // instead of one waiting on the other.
+      const camera = startVideo();
+
+      try {
+        await loadModels();
+      } catch {
+        if (cancelled) return;
+        setStatus("🚫 Error loading face models");
+        setLoading(false);
+        await camera;
+        return;
+      }
+
+      await camera;
+      if (cancelled) return;
+
+      setLoading(false);
+      setStatus("Ready. Look at the camera.");
+    };
+
+    run();
 
     return () => {
       cancelled = true;
       stopVideo();
     };
-  }, [startVideo, stopVideo]);
+  }, [startVideo, stopVideo, badKind]);
 
   useEffect(() => {
     if (mode !== "save") return;
@@ -143,6 +196,10 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
         );
 
         if (data?.verified) {
+          if (mode === "delete") {
+            await deleteAfterVerify();
+            return;
+          }
           setStatus("✅ Face matched! Opening...");
           toast.success("Face verified!");
           stopVideo();
@@ -163,11 +220,14 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
   };
 
   const isSave = mode === "save";
+  const isDelete = mode === "delete";
   const title = isSave
     ? hasFace
       ? "Update Face"
       : "Register Face"
-    : "Verify Face";
+    : isDelete
+      ? "Verify to Delete"
+      : "Verify Face";
 
   return (
     <div className="w-full max-w-lg mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg text-center space-y-4">
@@ -179,13 +239,26 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
         </p>
       )}
 
+      {badKind && (
+        <div className="space-y-3">
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            🚫 This link is not valid. The item type is missing.
+          </p>
+          <Link to="/home" className="inline-block text-indigo-600 font-medium underline">
+            Back to dashboard →
+          </Link>
+        </div>
+      )}
+
       <p className="text-gray-500 text-sm">
         {isSave
           ? "Your face is stored securely with your account and is used to unlock private items."
-          : "Look into the camera to unlock this private item."}
+          : isDelete
+            ? `Verify your face to move this private ${itemName} to trash.`
+            : "Look into the camera to unlock this private item."}
       </p>
 
-      {!noFaceRegistered && (
+      {!noFaceRegistered && !cameraError && !badKind && (
         <video
           ref={videoRef}
           autoPlay
@@ -197,7 +270,13 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
         />
       )}
 
-      {!noFaceRegistered && (
+      {cameraError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          🚫 Unable to access webcam. Allow camera access in your browser and reload this page.
+        </p>
+      )}
+
+      {!noFaceRegistered && !cameraError && !badKind && (
         <button
           onClick={handleCapture}
           disabled={loading || submitting || done}
@@ -215,7 +294,9 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({ mode = "save", type }
                 ? hasFace
                   ? "Update Face"
                   : "Save Face"
-                : "Verify Face"}
+                : isDelete
+                  ? "Verify & Delete"
+                  : "Verify Face"}
         </button>
       )}
 

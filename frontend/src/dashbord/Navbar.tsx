@@ -1,6 +1,6 @@
 import { useState, type JSX } from "react";
-import { Home, FileText, Folder, Trash2, Activity, Search, LogOut, UserRound, Camera } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Home, FileText, Folder, Trash2, Activity, Search, LogOut, UserRound, Camera, ArrowLeft } from "lucide-react";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { getUser, clearUser } from "../lib/auth";
 import { request } from "../api";
 
@@ -61,17 +61,42 @@ export default function Navbar({
         md:translate-x-0 transition-transform duration-300 ease-in-out z-40`}
       >
         <div className="p-4">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <span className="inline-block size-5">
-              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z"
-                  fill="currentColor"
-                ></path>
-              </svg>
-            </span>
-            SafeVault
-          </h1>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-xl font-bold">
+              <Link
+                to="/home"
+                onClick={() => setIsOpen(false)}
+                aria-label="SafeVault home"
+                title="Go to home"
+                className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -ml-1.5
+                  hover:bg-gray-700 hover:text-indigo-200 transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                <span className="inline-block size-5">
+                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z"
+                      fill="currentColor"
+                    ></path>
+                  </svg>
+                </span>
+                SafeVault
+              </Link>
+            </h1>
+
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label="Go back to the previous page"
+              title="Go back"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700
+                bg-gray-800 text-gray-200 text-sm font-medium hover:bg-gray-700
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            >
+              <ArrowLeft size={14} aria-hidden="true" />
+              Back
+            </button>
+          </div>
 
           <form onSubmit={handleSearch} className="mt-4 relative">
             <input

@@ -7,8 +7,15 @@ import Masonry from "react-masonry-css";
 import NoteCard from "../notes/Note";
 import FolderCard from "./FolderCard";
 import FileDisplay from "../../components/FileDisplay";
+import Breadcrumbs, { type Crumb } from "../../components/Breadcrumbs";
 import type { Folder, Note } from "../../types";
 import { request } from "../../api";
+
+interface PathFolder {
+  _id: string;
+  title: string;
+  isPrivate: boolean;
+}
 
 export default function FolderDetails() {
   const breakpointColumnsObj = { default: 3, 1024: 2, 640: 1 };
@@ -16,6 +23,7 @@ export default function FolderDetails() {
   const { id } = useParams();
   const [isOpen, setIsOpen] = useState(false);
   const [folder, setFolder] = useState<Folder | null>(null);
+  const [path, setPath] = useState<PathFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [removingFile, setRemovingFile] = useState<number | null>(null);
@@ -41,6 +49,10 @@ export default function FolderDetails() {
     request<Folder>(`/getfolders/single/${id}`).then(({ data }) => {
       setFolder(data);
       setLoading(false);
+    });
+
+    request<{ path: PathFolder[] }>(`/folderpath/${id}`).then(({ data }) => {
+      setPath(data?.path || []);
     });
   }, [id]);
 
@@ -79,16 +91,40 @@ export default function FolderDetails() {
     return (
       <div className="text-center py-20 text-gray-500">
         <p className="text-lg font-medium">Folder not found</p>
-        <button onClick={() => navigate("/folders")} className="mt-2 text-indigo-600">
+        <button onClick={() => navigate("/folders")} className="mt-2 text-indigo-600 hover:underline">
           ← Back to folders
         </button>
       </div>
     );
   }
 
+  const ancestors = path.filter((p) => p._id !== folder._id);
+  const parent = ancestors[ancestors.length - 1];
+  const backTarget = parent
+    ? parent.isPrivate
+      ? `/faceverify/folder/${parent._id}`
+      : `/folders/${parent._id}`
+    : "/folders";
+
+  const crumbs: Crumb[] = [
+    { label: "Home", to: "/home" },
+    { label: "Folders", to: "/folders" },
+    ...ancestors.map<Crumb>((p) => ({
+      label: p.title,
+      to: p.isPrivate ? `/faceverify/folder/${p._id}` : `/folders/${p._id}`,
+    })),
+    { label: folder.title },
+  ];
+
   return (
     <div className="p-4">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <Breadcrumbs
+          items={crumbs}
+          onBack={() => navigate(backTarget)}
+          backLabel={parent ? `Back to ${parent.title}` : "Back to folders"}
+        />
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
           <h1 className="text-3xl font-bold text-gray-900">{folder.title}</h1>
           <span className="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">
